@@ -16,35 +16,42 @@ export class TodoController {
   constructor(private readonly todoService: TodoService) {}
 
   @Post()
-  createTodo(@Body() todoDto: CreateTodoDto): TodoEntity {
-    return this.todoService.createTask(todoDto);
+  async createTask(@Body() todoDto: CreateTodoDto): Promise<TodoEntity> {
+    console.log("in controller",todoDto)
+    const createdTask = await this.todoService.createTask(todoDto);
+    return createdTask;
   }
 
   @Get()
-  getAllTodos(): TodoEntity[] {
-    return this.todoService.getAllTasks();
+  async getAllTasks(): Promise<TodoEntity[]> {
+    const allTasks = await this.todoService.getAllTasks();
+    return allTasks;
   }
 
   @Get(':id')
-  getTodoById(@Param('id') id: string): TodoEntity {
-    return this.todoService.getTaskById(id);
+  async getTaskById(@Param('id') id: string): Promise<TodoEntity | null> {
+    const task = await this.todoService.getTaskById(id);
+    return task;
   }
 
   @Get('status/:status')
-  getTodosByStatus(@Param('status') status: string): TodoEntity[] {
-    return this.todoService.getTasksByStatus(status);
+  async getTasksByStatus(@Param('status') status: string): Promise<TodoEntity[]> {
+    const tasks = await this.todoService.getTasksByStatus(status);
+    return tasks;
   }
 
   @Put(':id/status')
-  updateTodoStatus(
+  async updateTaskStatus(
     @Param('id') id: string,
-    @Body('status') changeStatusDto: ChangeStatusDto,
-  ): TodoEntity {
-    return this.todoService.updateTaskStatus(id, changeStatusDto);
+    @Body() changeStatusDto: ChangeStatusDto,
+  ): Promise<TodoEntity> {
+    const updatedTask = await this.todoService.updateTaskStatus(id, changeStatusDto.status);
+    return updatedTask;
   }
 
   @Delete(':id')
-  deleteTodoById(@Param('id') id: string): TodoEntity {
-    return this.todoService.deleteTaskById(id);
+  async deleteTaskById(@Param('id') id: string): Promise<TodoEntity | null> {
+    const deletedTask = await this.todoService.deleteTaskById(id);
+    return deletedTask;
   }
 }

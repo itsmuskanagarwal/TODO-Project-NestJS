@@ -1,70 +1,74 @@
 import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
+  Injectable, BadRequestException, NotFoundException
 } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { CreateTodoDto, ChangeStatusDto } from './dto/create-todo.dto';
+import { CreateTodoDto } from './dto/create-todo.dto';
 import { TodoEntity } from './entities/todo.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TodoService {
-  private taskList: TodoEntity[] = [];
+  constructor(@InjectModel('Todo') private readonly todoModel: Model<TodoEntity>) {}
 
-  createTask(task: CreateTodoDto) {
-    console.log('Created->', task);
-    if (!task || !task.title || !task.description || !task.status) {
-      throw new BadRequestException(
-        'Invalid task data. Please provide title, description, and status.',
-      );
+  async createTask(createTodoDto: CreateTodoDto): Promise<TodoEntity> {
+    if (!createTodoDto.title || !createTodoDto.description || !createTodoDto.status) {
+      throw new BadRequestException('Invalid data provided for creating a task.');
     }
-    const todo: TodoEntity = {
-      id: uuidv4(),
-      title: task.title,
-      description: task.description,
-      status: task.status,
+    console.log("in service",createTodoDto)
+    const newTodo: TodoEntity = {
+      id: uuidv4(), 
+      title: createTodoDto.title,
+      description: createTodoDto.description,
+      status: createTodoDto.status,
     };
-    this.taskList.push(todo);
-    console.log('Created->', this.taskList);
-    return todo;
+
+    console.log("in service",newTodo)
+
+    const createdTodo = new this.todoModel(newTodo);
+    return createdTodo.save();
   }
 
-  getAllTasks(): TodoEntity[] {
-    if (!this.taskList.length) {
-      throw new NotFoundException(`No TODO list found.`);
+  async getAllTasks(): Promise<TodoEntity[]> {
+    const tasks = await this.todoModel.find().exec();
+    if (!tasks || tasks.length === 0) {
+      throw new NotFoundException('No tasks found.');
     }
-    return this.taskList;
+    return tasks;
   }
 
-  getTaskById(id: string): TodoEntity {
-    const task = this.taskList.find((task) => task.id === id);
+  async getTaskById(id: string): Promise<TodoEntity | null> {
+    const task = await this.todoModel.findById(id).exec();
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(`Task with ID ${id} not found.`);
     }
     return task;
   }
 
-  getTasksByStatus(status: string): TodoEntity[] {
-    return this.taskList.filter((task) => task.status === status);
+  async getTasksByStatus(status: string): Promise<TodoEntity[]> {
+    if (!status) {
+      throw new BadRequestException('Invalid status provided for querying tasks.');
+    }
+    const tasks = await this.todoModel.find({ status }).exec();
+    return tasks;
   }
 
-  updateTaskStatus(id: string, changeStatusDto: ChangeStatusDto): TodoEntity {
-    const task = this.getTaskById(id);
-    if (!changeStatusDto || !changeStatusDto.status) {
-      throw new BadRequestException(
-        'Invalid status data. Please provide a valid status.',
-      );
+  async updateTaskStatus(id: string, status: string): Promise<TodoEntity | null> {
+    if (!status) {
+      throw new BadRequestException('Invalid status provided for updating the task.');
     }
-    task.status = changeStatusDto.status;
+    const task = await this.todoModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found.`);
+    }
     return task;
   }
 
-  deleteTaskById(id: string): TodoEntity {
-    const index = this.taskList.findIndex((task) => task.id === id);
-    if (index !== -1) {
-      const deletedTask = this.taskList.splice(index, 1)[0];
-      return deletedTask;
+  async deleteTaskById(id: string): Promise<TodoEntity | null> {
+    const task = await this.todoModel.findByIdAndDelete(id).exec();
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found.`);
     }
-    throw new NotFoundException(`Task with ID ${id} not found`);
+    return task;
   }
 }
